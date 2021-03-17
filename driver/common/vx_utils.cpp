@@ -284,7 +284,11 @@ extern int vx_dump_perf(vx_device_h device, FILE* stream) {
   int smem_bank_utilization = (int)((double(smem_reads + smem_writes) / double(smem_reads + smem_writes + smem_bank_stalls)) * 100);
   int dram_utilization = (int)((double(dram_reads + dram_writes) / double(dram_reads + dram_writes + dram_stalls)) * 100);
   int dram_avg_lat = (int)(double(dram_lat) / double(dram_reads));
-  fprintf(stream, "PERF: ibuffer stalls=%ld\n", ibuffer_stalls);
+  //Himanshu------------------------
+ // fprintf(stream, "PERF: ibuffer stalls=%ld\n", ibuffer_stalls);
+  fprintf(stream, "PERF (Mod): Total threads issued=%ld\n", ibuffer_stalls);
+  fprintf(stream,  "PERF (Mod): Threads per cycle: %f\n", double(ibuffer_stalls)/double(cycles));
+  //----------------------------------------------------------
   fprintf(stream, "PERF: scoreboard stalls=%ld\n", scoreboard_stalls);
   fprintf(stream, "PERF: alu unit stalls=%ld\n", alu_stalls);
   fprintf(stream, "PERF: lsu unit stalls=%ld\n", lsu_stalls);
