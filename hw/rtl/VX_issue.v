@@ -1,5 +1,5 @@
 `include "VX_define.vh"
-`include "VX_config.vh"
+
 module VX_issue #(
     parameter CORE_ID = 0
 ) (
@@ -21,6 +21,7 @@ module VX_issue #(
     VX_fpu_req_if   fpu_req_if,    
     VX_gpu_req_if   gpu_req_if
 );
+
     VX_decode_if  ibuf_deq_if();
     VX_decode_if  execute_if();
     VX_gpr_req_if gpr_req_if();
@@ -47,7 +48,7 @@ module VX_issue #(
         .writeback_if (writeback_if),
         .delay        (scoreboard_delay)
     );
-        
+
     assign gpr_req_if.wid = ibuf_deq_if.wid;
     assign gpr_req_if.rs1 = ibuf_deq_if.rs1;
     assign gpr_req_if.rs2 = ibuf_deq_if.rs2;
@@ -62,7 +63,7 @@ module VX_issue #(
         .gpr_req_if   (gpr_req_if),
         .gpr_rsp_if   (gpr_rsp_if)
     );
-
+    
     assign execute_if.valid     = ibuf_deq_if.valid && ~scoreboard_delay;
     assign execute_if.wid       = ibuf_deq_if.wid;
     assign execute_if.tmask     = ibuf_deq_if.tmask;
@@ -87,12 +88,13 @@ module VX_issue #(
         .csr_req_if (csr_req_if),
         .fpu_req_if (fpu_req_if),
         .gpu_req_if (gpu_req_if)
-    );     
+    );
 
     // issue the instruction
-    assign ibuf_deq_if.ready = !scoreboard_delay && execute_if.ready;     
 
-    `SCOPE_ASSIGN (issue_fire,        ibuf_deq_if.valid && ibuf_deq_if.ready);
+    assign ibuf_deq_if.ready = !scoreboard_delay && execute_if.ready;
+
+   `SCOPE_ASSIGN (issue_fire,        ibuf_deq_if.valid && ibuf_deq_if.ready);
     `SCOPE_ASSIGN (issue_wid,         ibuf_deq_if.wid);
     `SCOPE_ASSIGN (issue_tmask,       ibuf_deq_if.tmask);
     `SCOPE_ASSIGN (issue_pc,          ibuf_deq_if.PC);
@@ -120,53 +122,20 @@ module VX_issue #(
     `SCOPE_ASSIGN (writeback_data,    writeback_if.data);
     `SCOPE_ASSIGN (writeback_eop,     writeback_if.eop);
 
-`ifdef PERF_ENABLE
-    //reg [43:0] perf_ibf_stalls;
-    reg [43:0] perf_scb_stalls;
-    reg [43:0] perf_alu_stalls;
-    reg [43:0] perf_lsu_stalls;
-    reg [43:0] perf_csr_stalls;
-    reg [43:0] perf_gpu_stalls;
-`ifdef EXT_F_ENABLE
-    reg [43:0] perf_fpu_stalls;
+    `ifdef PERF_ENABLE
+    	reg [43:0] perf_ibf_stalls;
+    	reg [43:0] perf_scb_stalls;
+    	reg [43:0] perf_alu_stalls;
+    	reg [43:0] perf_lsu_stalls;
+    	reg [43:0] perf_csr_stalls;
+    	reg [43:0] perf_gpu_stalls;
+    `ifdef EXT_F_ENABLE
+    	reg [43:0] perf_fpu_stalls;
 `endif
-//----------------
-//Himanshu----------
-     
-    wire issue_thread;
-    
-    assign issue_thread = ibuf_deq_if.valid && ibuf_deq_if.ready;
-    //reg [3:0] mask;
-    reg [43:0] active_threads;
-    integer i; 
-    always @(issue_thread) begin
-        if (reset) begin
-            active_threads  = 0;
-            //perf_ibf_stalls = 0;
-            //mask <= ibuf_deq_if.tmask;
-        end
-        else if (ibuf_deq_if.valid & ibuf_deq_if.ready)
-        begin
-            //active_thread <= 0;
-            //mask <= ibuf_deq_if.tmask;
-            //perf_ibf_stalls = 0;
-            active_threads = 0;
-            for (i =0; i<4; i++)
-            begin
-		    if (ibuf_deq_if.tmask[i] == 'b1) 
-		    begin
-		     	active_threads = active_threads + 44'd1;
-		    end
-            end                 
-            //perf_ibf_stalls <=  active_thread;
-//	  //  perf_csr_stalls <= perf_csr_stalls + 44'd1;
-        end
-    end
 
-//------------------------------
     always @(posedge clk) begin
         if (reset) begin
-            //perf_ibf_stalls <= 0;
+            perf_ibf_stalls <= 0;
             perf_scb_stalls <= 0;
             perf_alu_stalls <= 0;
             perf_lsu_stalls <= 0;
@@ -176,11 +145,9 @@ module VX_issue #(
             perf_fpu_stalls <= 0;
         `endif
         end else begin
-	//Himanshu-------------------------------------
-        //   if (decode_if.valid & !decode_if.ready) begin
-        //        perf_ibf_stalls <= perf_ibf_stalls  + 44'd1;
-        //    end
-	//-------------------------------------------------
+            if (decode_if.valid & !decode_if.ready) begin
+                perf_ibf_stalls <= perf_ibf_stalls  + 44'd1;
+            end
             if (ibuf_deq_if.valid & scoreboard_delay) begin 
                 perf_scb_stalls <= perf_scb_stalls  + 44'd1;
             end
@@ -190,13 +157,9 @@ module VX_issue #(
             if (lsu_req_if.valid & !lsu_req_if.ready) begin
                 perf_lsu_stalls <= perf_lsu_stalls + 44'd1;
             end
-	//Himanshu----------------------------------------
-        
             if (csr_req_if.valid & !csr_req_if.ready) begin
                 perf_csr_stalls <= perf_csr_stalls + 44'd1;
             end
-        
-	//-------------------------------------------
             if (gpu_req_if.valid & !gpu_req_if.ready) begin
                 perf_gpu_stalls <= perf_gpu_stalls + 44'd1;
             end
@@ -207,10 +170,8 @@ module VX_issue #(
         `endif
         end
     end
-    //Himanshu--------------------------------------------
-   // assign perf_pipeline_if.ibf_stalls = perf_ibf_stalls;
-    assign perf_pipeline_if.ibf_stalls = active_threads;
-    //---------------------------------------------------
+
+ assign perf_pipeline_if.ibf_stalls = perf_ibf_stalls;
     assign perf_pipeline_if.scb_stalls = perf_scb_stalls; 
     assign perf_pipeline_if.alu_stalls = perf_alu_stalls;
     assign perf_pipeline_if.lsu_stalls = perf_lsu_stalls;
@@ -241,4 +202,4 @@ module VX_issue #(
     end
 `endif
 
-endmodule
+endmodule 
