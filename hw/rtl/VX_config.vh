@@ -396,3 +396,9 @@
 `endif
 
 `endif
+
+// Memory prefetcher
+// Enable memory prefetching
+`ifndef ENABLE_PREFETCHER
+`define ENABLE_PREFETCHER 0
+`endif

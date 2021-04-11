@@ -42,6 +42,36 @@ module VX_csr_data #(
 
     reg [31:0] read_data_r;
 
+    // Himanshu ---------
+    `ifdef PERF_ENABLE
+    	reg [43:0] total_threads;
+    `endif
+   /* 
+`ifdef PERF_ENABLE
+    wire [43:0] active_threads;
+    reg [43:0] active_threads_2;
+
+    assign active_threads = perf_pipeline_if.ibf_stalls;
+    always @(posedge clk)
+    begin
+       if (reset) 
+       begin
+    //      active_threads <= 0;
+	  active_threads_2 <= 0;
+       end
+ 
+       else if (busy)
+       begin
+          active_threads_2 <= active_threads + active_threads_2;
+       end
+
+    end
+    
+    assign perf_pipeline_if.ibf_stalls = active_threads_2;
+   
+`endif
+*/
+    // -----------------
     always @(posedge clk) begin
 
         if (reset) begin
@@ -83,9 +113,17 @@ module VX_csr_data #(
        if (reset) begin
             csr_cycle   <= 0;
             csr_instret <= 0;
+	    //Himanshu--------------
+	    `ifdef PERF_ENABLE
+	    	total_threads <= 0;
+	    `endif
+	    //--------------------
         end else begin
             if (busy) begin
                 csr_cycle <= csr_cycle + 1;
+		`ifdef PERF_ENABLE
+			total_threads <= total_threads + perf_pipeline_if.ibf_stalls ;
+		`endif
             end
             if (cmt_to_csr_if.valid) begin
                 csr_instret <= csr_instret + 64'(cmt_to_csr_if.commit_size);
@@ -113,8 +151,12 @@ module VX_csr_data #(
             
         `ifdef PERF_ENABLE
             // PERF: pipeline
-            `CSR_MPM_IBUF_ST    : read_data_r = perf_pipeline_if.ibf_stalls[31:0];
-            `CSR_MPM_IBUF_ST_H  : read_data_r = 32'(perf_pipeline_if.ibf_stalls[43:32]);
+            //Himanshu-----------------------------------------------------------------
+            //`CSR_MPM_IBUF_ST    : read_data_r = perf_pipeline_if.ibf_stalls[31:0];
+            `CSR_MPM_IBUF_ST    : read_data_r = total_threads[31:0];
+            `CSR_MPM_IBUF_ST_H  : read_data_r = 32'(total_threads[43:32]);
+            //`CSR_MPM_IBUF_ST_H  : read_data_r = 32'(perf_pipeline_if.ibf_stalls[43:32]);
+	    //-------------------------------------------------------------------------
             `CSR_MPM_SCRB_ST    : read_data_r = perf_pipeline_if.scb_stalls[31:0];
             `CSR_MPM_SCRB_ST_H  : read_data_r = 32'(perf_pipeline_if.scb_stalls[43:32]);
             `CSR_MPM_ALU_ST     : read_data_r = perf_pipeline_if.alu_stalls[31:0];
